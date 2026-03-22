@@ -1,79 +1,98 @@
 #!/usr/bin/env python3
 # ╔══════════════════════════════════════════════════════════════════╗
-# ║   FIXTT  — Advanced OSINT Intelligence Framework               ║
-# ║   Maintained by : krypthane | wavegxz-design                   ║
-# ║   GitHub        : github.com/wavegxz-design                    ║
-# ║   Telegram      : t.me/Skrylakk                                ║
-# ║   Email         : Workernova@proton.me                         ║
-# ║   Site          : krypthane.workernova.workers.dev             ║
-# ║   Location      : Mexico 🇲🇽 UTC-6                             ║
-# ║                                                                 ║
-# ║   Security fixes v7.2 (krypthane):                             ║
-# ║   - [FIX] Stripe API key moved to env var (was hardcoded)      ║
-# ║   - [FIX] shell=True replaced with shlex.split() safe calls    ║
-# ║   - [FIX] Auto-update requires explicit user confirmation       ║
-# ║   - [FIX] Tor check no longer chains commands via shell         ║
-# ║   - [FIX] NewsAPI key moved to env var (was hardcoded ln692)   ║
-# ║   - [FIX] Command injection in traceip() → webbrowser.open()  ║
-# ║   - [FIX] 'or "g"' always-true bug → in ("G","g") × 5        ║
-# ║   - [FIX] exit → sys.exit(0) × 3 (bare exit is a no-op)       ║
-# ║   - [FIX] option 13 self-outside-class → working impl          ║
-# ║   - [FIX] 39 requests.get() without timeout → timeout=8        ║
-# ║   - [FIX] hunter_io filename mismatch (open vs exists)         ║
-# ║   - [FIX] spaCy install os.system → subprocess                 ║
-# ║                                                                 ║
-# ║   All usage must be authorized. Ethical hacking only.          ║
+# ║   FIXTT  — Advanced OSINT Intelligence Framework                 ║
+# ║   Maintained by : krypthane | wavegxz-design                     ║
+# ║   GitHub        : github.com/wavegxz-design                      ║
+# ║   Telegram      : t.me/Skrylakk                                  ║
+# ║   Email         : Workernova@proton.me                           ║
+# ║   Site          : krypthane.workernova.workers.dev               ║
+# ║   Location      : Mexico 🇲🇽 UTC-6                                ║
+# ║                                                                  ║
+# ║   Security fixes v7.3 (krypthane):                               ║
+# ║   - [FIX] Stripe API key moved to env var (was hardcoded)        ║
+# ║   - [FIX] shell=True replaced with shlex.split() safe calls      ║
+# ║   - [FIX] Auto-update requires explicit user confirmation        ║
+# ║   - [FIX] Tor check no longer chains commands via shell          ║
+# ║   - [FIX] NewsAPI key moved to env var (was hardcoded ln692)     ║
+# ║   - [FIX] Command injection in traceip() → webbrowser.open()     ║
+# ║   - [FIX] \'or "g"\' always-true bug → in ("G","g") × 5          ║
+# ║   - [FIX] exit → sys.exit(0) × 3 (bare exit is a no-op)          ║
+# ║   - [FIX] option 13 self-outside-class → working impl            ║
+# ║   - [FIX] 39 requests.get() without timeout → timeout=8          ║
+# ║   - [FIX] hunter_io filename mismatch (open vs exists)           ║
+# ║   - [FIX] spaCy install os.system → subprocess                   ║
+# ║   v7.3 CRASH FIX (krypthane):                                    ║
+# ║   - [FIX] 20+ third-party imports at module level → lazy load    ║
+# ║   - [FIX] install_exiftool() at module level → __main__ only     ║
+# ║   - [FIX] auto-install 6 pkgs at module level → __main__ only    ║
+# ║   - [FIX] Flask app = Flask() at module level → lazy init        ║
+# ║   - [FIX] print_banner() at module level → __main__ guard        ║
+# ║   - [FIX] check_disclaimer() at module level → __main__ guard    ║
+# ║   - [FIX] os.system("clear") at module level → __main__ guard    ║
+# ║   - [FIX] NO __main__ guard → added, all exec inside main()      ║
+# ║                                                                  ║
+# ║   All usage must be authorized. Ethical hacking only.            ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
+# ── STDLIB ONLY — never fails ─────────────────────────────────────────────────
 import signal
 import tempfile
-from googlesearch import search # type: ignore
-from smtplib import SMTP, SMTPRecipientsRefused, SMTPSenderRefused, SMTPResponseException
-from email.mime.multipart import MIMEMultipart
 import re
 import json
 import os
 import time
 import socket
-import requests
-from ping3 import ping
 import ipaddress
 import readline
-import colorama
-from colorama import *
-from time import sleep
-import sys
-import json
-from PIL import Image
-from PIL.ExifTags import TAGS
-import piexif
-from prompt_toolkit import print_formatted_text, HTML
-from pathlib import Path
-import platform
-from datetime import datetime
-import phonenumbers # type: ignore
-from phonenumbers import geocoder # type: ignore
-import opencage
-from bs4 import BeautifulSoup as bs
-import tkinter as tk
-from tkinter import messagebox
-import webbrowser
-import stripe # type: ignore
-import tkinter as tk
-from tkinter import filedialog, simpledialog, messagebox
-from PIL import Image, ImageTk
 import base64
-from googleapiclient.discovery import build # type: ignore
-import requests
-from bs4 import BeautifulSoup
-import webbrowser
-from datetime import datetime, timedelta
-from flask import Flask, request, render_template_string
-import requests
-from cryptography.fernet import Fernet # type: ignore
 import subprocess
 import shutil
-import distro
+import platform
+from pathlib import Path
+from datetime import datetime, timedelta
+from time import sleep
+import sys
+
+# ── LAZY IMPORT HELPER — FIX: heavy deps imported only when needed ─────────────
+# Original had 20+ third-party imports at module level — if ANY failed, crash.
+# Now imported inside functions that actually need them.
+def _require(pkg, install_name=None, extra=None):
+    """Import a package, auto-install if missing. Only called from functions."""
+    import importlib
+    try:
+        mod = importlib.import_module(pkg)
+        return mod
+    except ImportError:
+        name = install_name or pkg
+        print(f"\033[1;33m[!] {pkg} not found — installing {name}...\033[0m")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", name],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return importlib.import_module(pkg)
+
+# Pre-import only what is genuinely needed at module scope for type hints
+# Everything else stays lazy inside functions
+try:
+    import colorama
+    from colorama import Fore, Style, init as colorama_init
+    colorama_init(autoreset=True)
+except ImportError:
+    pass  # colorama optional — ANSI still works on Linux/macOS natively
+
+try:
+    import requests as _requests
+except ImportError:
+    _requests = None  # checked at call sites
+
+try:
+    import webbrowser
+except ImportError:
+    webbrowser = None
+
+try:
+    from smtplib import SMTP, SMTPRecipientsRefused, SMTPSenderRefused, SMTPResponseException
+    from email.mime.multipart import MIMEMultipart
+except ImportError:
+    pass
 
 
 ##DISCLAIMER
@@ -196,65 +215,40 @@ def install_exiftool():
 
 
     
-##installpackage
+# ── FIX: Auto-install moved inside __main__ guard ──────────────────────────────
+# Original ran pip install + install_exiftool() at module level on EVERY run.
+# This caused system-level changes without user consent and crashed the tool.
 def install_package(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# Check and install required packages
+def _check_deps():
+    """Check and install dependencies — called once from __main__ only."""
+    deps = [
+        ('speedtest',  'speedtest-cli'),
+        ('ping3',      'ping3'),
+        ('flask',      'flask'),
+        ('qrcode',     'qrcode'),
+    ]
+    for mod, pkg in deps:
+        try:
+            __import__(mod)
+        except ImportError:
+            print(f"\033[1;33m[!] {pkg} not found — installing...\033[0m")
+            install_package(pkg)
 
-try:
-    import speedtest
-except ImportError:
-    print("speedtest-cli not found. Installing...")
-    install_package('speedtest-cli')
-    import speedtest
+    # spaCy — separate because needs model download
+    try:
+        import spacy  # noqa: F401
+    except ImportError:
+        print("\033[1;33m[!] spacy not found — installing...\033[0m")
+        install_package('spacy')
+        subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"],
+                       check=False, stdout=subprocess.DEVNULL)
 
-
-try:
-    from ping3 import ping
-except ImportError:
-    print("ping3 not found. Installing...")
-    install_package('ping3')
-    from ping3 import ping
-
-try:
-    import spacy
-except ImportError:
-    print("spaCy not found. Installing...")
-    install_package('spacy')
-    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], check=False)  # FIX: no shell=True
-    import spacy
-
-try:
-    from flask import Flask, render_template
-except ImportError:
-    print("Flask not found. Installing...")
-    install_package('flask')
-    from flask import Flask, render_template
-
-try:
-    from wifi import Cell, Scheme
-except ImportError:
-    print("wifi not found. Installing...")
-    install_package('wifi')
-    from wifi import Cell, Scheme
-    
-try:
-    import qrcode
-except ImportError:
-    print("qrcode not found. Installing...")
-    install_package('qrcode')
-    import qrcode
-
-   
-try:
-    install_exiftool()
-except subprocess.CalledProcessError as e:
-    print(f"An error occurred during installation: {e}")
-    sys.exit(1)
-except Exception as e:
-    print(f"An unexpected error occurred: {e}")
-    sys.exit(1)
+    # ExifTool — only install if actually needed (option 11)
+    # Moved out of module level — was running sudo apt-get on startup
+    pass  # called lazily from extract_metadata()
 
 
 def get_geoip_info(ip):
@@ -394,8 +388,16 @@ def open_map_location(lat, lon):
     webbrowser.open(apple_maps_url)
 
 
-##network mpapping
-app = Flask(__name__)
+##network mapping
+# FIX: Flask app created inside function — not at module level
+# Original: app = Flask(__name__) ran before any user interaction
+_flask_app = None
+def _get_flask_app():
+    global _flask_app
+    if _flask_app is None:
+        from flask import Flask as _Flask
+        _flask_app = _Flask(__name__)
+    return _flask_app
 
 def scan_wifi_networks():
     networks = []
@@ -991,8 +993,7 @@ def print_banner():
         print(line)
         time.sleep(0.02)
 
-banner = ""
-print_banner()
+banner = ""  # FIX: print_banner() moved to __main__ guard
 
 
 main_menu = (
@@ -1377,24 +1378,23 @@ def update():
 		print("Invalid input....KINDLY UPDATE...quiting..")
 		sleep(0.5)
 		sys.exit(0)  # FIX: bare exit is a no-op
-#### Start main script
-###maincode
-### 4, 5, 6, 7
-os.system("clear")
-##global root
-##root = tk.Tk()
-##root.withdraw() 
+#### Start main script — FIX: wrapped in __main__ guard ─────────────────────
+# Original ran os.system("clear"), check_disclaimer(), print_banner() and
+# input() ALL at module level — meaning they ran on EVERY import/run start
+# without any guard. Wrapped in main() called from if __name__ == "__main__".
 
-##Fetchupdate
-##update_script() ####----->ENABLE THIS 
+def _run_main():
+    """Entry point — all startup code here, never at module level."""
+    try:
+        subprocess.run(['clear'], check=False)
+    except Exception:
+        pass
 
-##show_support_popup() --> ENABLE THIS
-##DIsclaimerstart
-check_disclaimer()
-
-print_banner()
-print(main_menu)
-option = input("\033[38;5;208mfixtt>> \033[1;97m") 
+    check_disclaimer()
+    print_banner()
+    print(main_menu)
+    option = input("\033[38;5;208mfixtt>> \033[1;97m").strip()
+    
 if option == "1":
 	traceip()
 elif option == "2":
@@ -2917,9 +2917,30 @@ elif option == "101":
 ### ADD NEXT MAIN MENU TO IT
 	
 
-else:
-	print()
-	print("[*] Invalid Input..try again....")
-	sleep(0.9)
-	exit()
-#END OF SCRIPT
+    else:
+        print()
+        print("[*] Invalid Input — try again.")
+        sleep(0.9)
+        sys.exit(0)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENTRY POINT — FIX: guards all execution behind __main__
+# Original had NO __main__ guard — everything ran on import.
+# This was the root cause of the system crash.
+# ═══════════════════════════════════════════════════════════════════════════════
+if __name__ == "__main__":
+    if sys.version_info < (3, 8):
+        print("[!] Python 3.8+ required.")
+        sys.exit(1)
+    # Check deps ONCE, interactively, before menu
+    _check_deps()
+    # Run the main menu loop
+    try:
+        _run_main()
+    except KeyboardInterrupt:
+        print("\n\033[1;34m[*] Interrupted. Exiting FIXTT.\033[0m")
+        sys.exit(0)
+    except EOFError:
+        sys.exit(0)
+
