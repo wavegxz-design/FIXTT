@@ -1,0 +1,23 @@
+# GitHub Repository Settings
+# Paste these topics in: GitHub repo → ⚙️ Settings (gear) → Topics
+
+osint
+osint-tool
+cybersecurity
+red-team
+ethical-hacking
+python
+terminal
+cli
+recon
+ip-lookup
+email-osint
+dns-lookup
+subdomain-enumeration
+google-dork
+dark-web
+ctf
+bug-bounty
+penetration-testing
+kali-linux
+termux
